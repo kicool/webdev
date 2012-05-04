@@ -1,0 +1,198 @@
+<html>
+<head>
+<script src="jquery.js"></script>
+<script src="csv.js"></script>
+</head>
+<body>
+
+<canvas id='canvas' width="600" height="400"></canvas><br/>
+<button id="load">load</button>
+<button id="play">play</button>
+
+<script type='text/javascript'>
+
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+var colors = ["aqua","blue","gray","navy","teal","green","seagreen"];
+var bgpattern = null;
+var bgimage = new Image();
+bgimage.onload = function() {
+    bgpattern = ctx.createPattern(bgimage,'repeat');
+};
+bgimage.src='merely_cubed.png';
+
+var regions = [
+    "East Asia & Pacific",
+    "Europe & Central Asia",
+    "Latin America & Caribbean",
+    "Middle East & North Africa",
+    "North America",
+    "South Asia",
+    "Sub-Saharan Africa"];
+
+var data = [];
+for(var t=0; t<20; t++) {
+    var cdata = [];
+    data[t] = cdata;
+    for(var country=0; country<5; country++) {
+        cdata.push({ 
+            x:50+Math.random()*500,
+            y:50+Math.random()*300 ,
+            size: 3+Math.random()*20,
+            country: country});
+    }
+}
+
+var displayInfo = false;
+var displayCountry = null;
+var time = 0;
+function draw() {
+    
+    //bg and border
+    if(bgpattern) {
+        ctx.fillStyle = bgpattern;
+    } else {
+        ctx.fillStyle = "white";
+    }
+    ctx.fillRect(0,0, canvas.width,canvas.height);
+    ctx.strokeStyle = "black";
+    ctx.strokeRect(0,0,canvas.width,canvas.height);
+    
+
+    //draw the data for the current time slice
+    data[time].forEach(function(d) {
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        
+        var x = d.x*6;
+        var y = canvas.height-d.y*2.5;
+        var radius = d.size/(1000*1000*11);
+        ctx.arc(
+            x,
+            y,
+            radius,
+            0,Math.PI*2);
+        
+        var color = colors[d.country%colors.length];
+        ctx.fillStyle = color;
+        ctx.fill();
+        
+        var radgrad = ctx.createRadialGradient(
+                x-radius/10,y-radius/10,0,
+                x-radius/10,y-radius/10,radius+30);
+        radgrad.addColorStop(0,   'white');
+        radgrad.addColorStop(0.5, 'white');
+        radgrad.addColorStop(1,   'rgba(255,255,255,0.3)');
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = radgrad;
+        
+        ctx.fill();
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+    });
+    
+    //time indicator
+    ctx.save();
+    ctx.fillStyle = "black";
+    ctx.font = "20pt Helvetica, sans-serif";
+    ctx.fillText("Year " + (1965+time), 10,30);
+    ctx.restore();
+    
+    if(displayInfo) {
+        ctx.save();
+        ctx.translate(canvas.width-305,5);
+        ctx.fillStyle = "rgba(200,200,200,0.7)";
+        ctx.fillRect(0,0,300,100);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0,0,300,100);
+        
+        ctx.fillStyle = "black";
+        ctx.font = "14pt Helvetica, sans-serif";
+        var displayPoint = data[time][displayCountry];
+        ctx.fillText("Region: " + regions[displayPoint.country],5,20);
+        ctx.fillText("Population Density: " + displayPoint.x,5,20+20*1);
+        ctx.fillText("Mortality rate: " + displayPoint.y,5,20+20*2);
+        ctx.fillText("Population: " + displayPoint.size,5,20+20*3);
+        ctx.restore();
+    }
+}
+
+draw();
+    
+$("#play").click(function() {
+    time = 0;
+    var animdraw = function() {
+        draw();
+        time++;
+        if(time < data.length) {
+            setTimeout(animdraw,100);
+        } else {
+            time = data.length-1;
+        }
+    }
+    animdraw();
+});
+
+$("#load").click(function() {
+	$.ajax({
+		url: "data.csv",
+		context: document.body,
+		success: function(c) {
+			var csvdata = CSVToArray(c);
+			console.log("data length = " + csvdata.length);
+			data = [];
+			
+            //start at 9 to skip non-year columns and first few years
+            for(var t=9; t<csvdata[0].length-1; t++) {
+                var cdata = [];
+                
+                //loop through rows by threes
+                for(var i=1; i<csvdata.length-1; i+=3) {
+                    var row_mort = csvdata[i];
+                    var row_dens = csvdata[i+1];
+                    var row_total = csvdata[i+2];
+                    var country = (i-1)/3;
+                    cdata.push({
+                        x:row_dens[t] ,
+                        y:row_mort[t],
+                        size: row_total[t],
+                        country: country,
+                    });
+				}
+                data[t-9] = cdata;
+			}
+			time=0;
+			draw();
+		}
+	});
+        
+});
+
+function dist(a,b,c,d) {
+    return Math.sqrt((a-c)*(a-c) + (b-d)*(b-d));
+}
+
+$("#canvas").mousedown(function(e) {
+    displayInfo = false;
+    data[time].forEach(function(d) {
+        var x = d.x*6;
+        var y = canvas.height-d.y*2.5;
+        var radius = d.size/(1000*1000*11);
+        var dis = dist(e.offsetX,e.offsetY,x,y);
+        if(dis < radius) {
+            console.log("inside: " + d.country);
+            displayInfo = true;
+            displayCountry = d.country;
+        }
+    });
+    draw();
+});
+
+</script>
+</body>
+</html>

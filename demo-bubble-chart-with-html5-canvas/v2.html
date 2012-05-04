@@ -1,0 +1,113 @@
+<html>
+<head>
+<script src="jquery.js"></script>
+<script src="csv.js"></script>
+</head>
+<body>
+
+<canvas id='canvas' width="600" height="400"></canvas><br/>
+<button id="load">load</button>
+<button id="play">play</button>
+
+<script type='text/javascript'>
+
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+var colors = ["red","green","blue","yellow","orange"];
+
+var data = [];
+for(var t=0; t<20; t++) {
+    var cdata = [];
+    data[t] = cdata;
+    for(var country=0; country<5; country++) {
+        cdata.push({ 
+            x:50+Math.random()*500,
+            y:50+Math.random()*300 ,
+            size: 3+Math.random()*20,
+            country: country});
+    }
+}
+
+var time = 0;
+function draw() {
+    
+    //bg and border
+    ctx.fillStyle = "white";
+    ctx.fillRect(0,0, canvas.width,canvas.height);
+    ctx.strokeStyle = "black";
+    ctx.strokeRect(0,0,canvas.width,canvas.height);
+    
+    //time indicator
+    ctx.fillStyle = "black";
+    ctx.fillText("time " + (1965+time), 10,20);
+
+    //draw the data for the current time slice
+    data[time].forEach(function(d) {
+        ctx.save();
+        ctx.fillStyle = colors[d.country%colors.length];
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.arc(
+            d.x*6,
+            canvas.height-d.y*2.5,
+            d.size/(1000*1000*11),
+            0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    });
+    
+}
+
+draw();
+    
+$("#play").click(function() {
+    var animdraw = function() {
+        draw();
+        time++;
+        if(time < data.length) {
+            setTimeout(animdraw,100);
+        } else {
+            time = 0;
+        }
+    }
+    animdraw();
+});
+
+$("#load").click(function() {
+	$.ajax({
+		url: "data.csv",
+		context: document.body,
+		success: function(c) {
+			var csvdata = CSVToArray(c);
+			data = [];
+			
+            //start at 9 to skip non-year columns and first few years
+            for(var t=9; t<csvdata[0].length-1; t++) {
+                var cdata = [];
+                
+                //loop through rows by threes
+                for(var i=1; i<csvdata.length-1; i+=3) {
+                    var row_mort = csvdata[i];
+                    var row_dens = csvdata[i+1];
+                    var row_total = csvdata[i+2];
+                    var country = (i-1)/3;
+                    cdata.push({
+                        x:row_dens[t] ,
+                        y:row_mort[t],
+                        size: row_total[t],
+                        country: country,
+                    });
+				}
+                data[t-9] = cdata;
+			}
+			time=0;
+			draw();
+		}
+	});
+        
+});
+
+</script>
+</body>
+</html>

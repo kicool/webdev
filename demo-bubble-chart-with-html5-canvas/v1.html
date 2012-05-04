@@ -1,0 +1,72 @@
+<html>
+<head>
+<script src="jquery.js"></script>
+</head>
+<body>
+
+<canvas id='canvas' width="600" height="400"></canvas><br/>
+<button id="play">play</button>
+
+<script type='text/javascript'>
+var data = [];
+for(var t=0; t<20; t++) {
+    var cdata = [];
+    data[t] = cdata;
+    for(var country=0; country<5; country++) {
+        cdata.push({ 
+            x:50+Math.random()*500,
+            y:50+Math.random()*300 ,
+            size: 3+Math.random()*20,
+            country: country});
+    }
+}
+
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+
+var colors = ["red","green","blue","yellow","orange"];
+
+var time = 0;
+function draw() {
+    
+    //bg and border
+    ctx.fillStyle = "white";
+    ctx.fillRect(0,0, canvas.width,canvas.height);
+    ctx.strokeStyle = "black";
+    ctx.strokeRect(0,0,canvas.width,canvas.height);
+    
+    //time indicator
+    ctx.fillStyle = "black";
+    ctx.fillText("time " + time, 10,20);
+    
+    //draw the data for the current time slice
+    data[time].forEach(function(d) {
+        ctx.save();
+        ctx.fillStyle = colors[d.country%colors.length];
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.arc(d.x,d.y,d.size,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    });
+    
+}
+
+draw();
+    
+$("#play").click(function() {
+    var animdraw = function() {
+        draw();
+        time++;
+        if(time < data.length) {
+            setTimeout(animdraw,100);
+        } else {
+            time = 0;
+        }
+    }
+    animdraw();
+});
+
+</script>
+</body>
+</html>
